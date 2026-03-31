@@ -30,6 +30,8 @@ def transcript(url: str, language: str = "en") -> str:
         return get_transcript(url, language)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch transcript.")
 
 
 if __name__ == "__main__":

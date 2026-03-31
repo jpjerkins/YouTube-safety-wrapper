@@ -3,5 +3,3 @@ yt-dlp
 openai
 fastapi
 uvicorn
-httpx
-pytest
