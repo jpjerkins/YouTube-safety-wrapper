@@ -14,7 +14,14 @@ _KEEP_FIELDS = (
 )
 
 
-def get_video_metadata(video_id: str) -> dict[str, Any]:
+def _resolve_url(url_or_id: str) -> str:
+    """Return a full YouTube URL. Pass-through if already a URL, else construct one."""
+    if url_or_id.startswith("http"):
+        return url_or_id
+    return f"https://www.youtube.com/watch?v={url_or_id}"
+
+
+def get_video_metadata(url_or_id: str) -> dict[str, Any]:
     """Fetch and return sanitized metadata for a YouTube video."""
     ydl_opts = {
         "noplaylist": True,
@@ -22,7 +29,7 @@ def get_video_metadata(video_id: str) -> dict[str, Any]:
         "no_warnings": True,
     }
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
+    url = _resolve_url(url_or_id)
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
 
