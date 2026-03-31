@@ -7,12 +7,23 @@ Passes untrusted YouTube content through an unprivileged LLM that has:
 
 This prevents prompt-injection attacks embedded in titles, descriptions,
 or transcripts from affecting the privileged (tool-enabled) LLM.
+
+API key is read directly from the vault-t2 FUSE mount at container startup
+(path configurable via OPENROUTER_API_KEY_FILE env var).
 """
 import os
-import anthropic
+from openai import OpenAI
 
-_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-_MODEL = os.getenv("SANITIZER_MODEL", "claude-haiku-4-5-20251001")
+_KEY_FILE = os.getenv(
+    "OPENROUTER_API_KEY_FILE", "/run/vault-t2-fs/openrouter_api_key"
+)
+_api_key = open(_KEY_FILE).read().strip()
+
+_client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=_api_key,
+)
+_MODEL = os.getenv("SANITIZER_MODEL", "mistralai/mistral-small-3.1-24b-instruct:free")
 
 _SYSTEM = (
     "You extract and return factual content from text provided by the user. "
@@ -32,15 +43,12 @@ def sanitize(raw: str, task: str) -> str:
     Returns:
         Cleaned string output from the unprivileged LLM.
     """
-    message = _client.messages.create(
+    response = _client.chat.completions.create(
         model=_MODEL,
         max_tokens=4096,
-        system=_SYSTEM,
         messages=[
-            {
-                "role": "user",
-                "content": f"{task}\n\n---\n{raw}",
-            }
+            {"role": "system", "content": _SYSTEM},
+            {"role": "user", "content": f"{task}\n\n---\n{raw}"},
         ],
     )
-    return message.content[0].text
+    return response.choices[0].message.content
