@@ -6,4 +6,4 @@ RUN groupadd -g 50011 youtube-mcp && useradd -u 50011 -g 50011 -s /bin/false -M 
 COPY youtube_mcp/ ./youtube_mcp/
 USER 50011
 EXPOSE 8004
-CMD ["python", "-m", "youtube_mcp.server"]
+CMD ["uvicorn", "youtube_mcp.server:app", "--host", "0.0.0.0", "--port", "8004"]
