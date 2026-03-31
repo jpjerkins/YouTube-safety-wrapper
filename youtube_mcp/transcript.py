@@ -27,8 +27,16 @@ def _json3_to_text(path: str) -> str:
     return re.sub(r"\s+", " ", "".join(parts)).strip()
 
 
-def get_transcript(video_id: str, language: str = "en") -> str:
+def _resolve_url(url_or_id: str) -> str:
+    """Return a full YouTube URL. Pass-through if already a URL, else construct one."""
+    if url_or_id.startswith("http"):
+        return url_or_id
+    return f"https://www.youtube.com/watch?v={url_or_id}"
+
+
+def get_transcript(url_or_id: str, language: str = "en") -> str:
     """Download and return a sanitized plain-text transcript for a YouTube video."""
+    url = _resolve_url(url_or_id)
     with tempfile.TemporaryDirectory() as tmpdir:
         ydl_opts = {
             "writeautomaticsub": True,
@@ -41,7 +49,6 @@ def get_transcript(video_id: str, language: str = "en") -> str:
             "no_warnings": True,
         }
 
-        url = f"https://www.youtube.com/watch?v={video_id}"
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
@@ -52,7 +59,7 @@ def get_transcript(video_id: str, language: str = "en") -> str:
         ]
         if not candidates:
             raise ValueError(
-                f"No transcript found for video '{video_id}' in language '{language}'."
+                f"No transcript found for '{url_or_id}' in language '{language}'."
             )
 
         raw_text = _json3_to_text(os.path.join(tmpdir, candidates[0]))
