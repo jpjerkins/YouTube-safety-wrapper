@@ -34,6 +34,17 @@ def transcript(url: str, language: str = "en") -> str:
         raise HTTPException(status_code=500, detail="Failed to fetch transcript.")
 
 
+@app.get("/video-metadata")
+def video_metadata(url: str) -> dict:
+    """Return sanitized metadata for a YouTube video URL or ID."""
+    try:
+        return get_video_metadata(url)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to fetch video metadata.")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=_PORT)
