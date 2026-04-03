@@ -7,12 +7,17 @@ Exposes YouTube tools via two interfaces on PORT (default 8004):
 All untrusted YouTube content is scrubbed by a sandboxed LLM before being
 returned. Requires vault-t2 FUSE mount for the OpenRouter API key.
 """
+import logging
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from mcp.server.fastmcp import FastMCP
 from youtube_mcp.tools import register_tools
 from youtube_mcp.transcript import get_transcript
+from youtube_mcp.metadata import get_video_metadata
+
+logging.basicConfig(level=logging.INFO)
+_log = logging.getLogger(__name__)
 
 _PORT = int(os.getenv("PORT", "8004"))
 
@@ -31,6 +36,7 @@ def transcript(url: str, language: str = "en") -> str:
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
+        _log.exception("Failed to fetch transcript for %s", url)
         raise HTTPException(status_code=500, detail="Failed to fetch transcript.")
 
 
@@ -42,6 +48,7 @@ def video_metadata(url: str) -> dict:
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
+        _log.exception("Failed to fetch video metadata for %s", url)
         raise HTTPException(status_code=500, detail="Failed to fetch video metadata.")
 
 
