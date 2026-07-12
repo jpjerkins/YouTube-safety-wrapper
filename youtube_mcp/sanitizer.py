@@ -51,4 +51,10 @@ def sanitize(raw: str, task: str) -> str:
             {"role": "user", "content": f"{task}\n\n---\n{raw}"},
         ],
     )
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+    if content is None:
+        finish_reason = response.choices[0].finish_reason
+        raise RuntimeError(
+            f"Sanitizer model '{_MODEL}' returned no content (finish_reason={finish_reason})."
+        )
+    return content
