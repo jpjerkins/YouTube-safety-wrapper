@@ -32,6 +32,18 @@ _SYSTEM = (
 )
 
 
+_MIN_MAX_TOKENS = 4096
+_REASONING_BUFFER_TOKENS = 4096
+
+
+def _max_tokens_for(raw: str) -> int:
+    """Size the output budget to fit a near-verbatim echo of `raw` plus
+    headroom for the model's hidden reasoning tokens (counted against the
+    same budget on reasoning models like kimi-k2.5)."""
+    estimated_input_tokens = len(raw) // 3
+    return max(_MIN_MAX_TOKENS, estimated_input_tokens + _REASONING_BUFFER_TOKENS)
+
+
 def sanitize(raw: str, task: str) -> str:
     """Run raw untrusted content through the unprivileged LLM.
 
@@ -45,7 +57,7 @@ def sanitize(raw: str, task: str) -> str:
     """
     response = _client.chat.completions.create(
         model=_MODEL,
-        max_tokens=4096,
+        max_tokens=_max_tokens_for(raw),
         messages=[
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": f"{task}\n\n---\n{raw}"},

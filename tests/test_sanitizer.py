@@ -31,3 +31,24 @@ def test_sanitize_raises_when_model_returns_no_content(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="content_filter"):
         sanitizer.sanitize("raw", "task")
+
+
+def test_max_tokens_for_short_input_uses_floor():
+    assert sanitizer._max_tokens_for("") == sanitizer._MIN_MAX_TOKENS
+
+
+def test_max_tokens_for_long_input_scales_with_length():
+    raw = "x" * 30000  # ~10k estimated tokens
+    expected = 30000 // 3 + sanitizer._REASONING_BUFFER_TOKENS
+    assert sanitizer._max_tokens_for(raw) == expected
+
+
+def test_sanitize_requests_larger_budget_for_longer_transcripts(monkeypatch):
+    mock_create = MagicMock(return_value=_mock_response("cleaned text"))
+    monkeypatch.setattr(sanitizer._client.chat.completions, "create", mock_create)
+
+    raw = "x" * 30000
+    sanitizer.sanitize(raw, "task")
+
+    assert mock_create.call_args.kwargs["max_tokens"] == sanitizer._max_tokens_for(raw)
+    assert mock_create.call_args.kwargs["max_tokens"] > sanitizer._MIN_MAX_TOKENS
