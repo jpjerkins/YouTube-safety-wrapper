@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 import yt_dlp
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 from youtube_mcp.sanitizer import sanitize
 
 
@@ -34,6 +35,16 @@ def _resolve_url(url_or_id: str) -> str:
     return f"https://www.youtube.com/watch?v={url_or_id}"
 
 
+@retry(
+    retry=retry_if_exception_type(yt_dlp.utils.DownloadError),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    reraise=True,
+)
+def _download_subtitles(ydl: yt_dlp.YoutubeDL, url: str) -> None:
+    ydl.download([url])
+
+
 def get_transcript(url_or_id: str, language: str = "en") -> str:
     """Download and return a sanitized plain-text transcript for a YouTube video."""
     url = _resolve_url(url_or_id)
@@ -50,7 +61,7 @@ def get_transcript(url_or_id: str, language: str = "en") -> str:
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            _download_subtitles(ydl, url)
 
         # yt-dlp names the file: <id>.<lang>.json3 or <id>.<lang>-auto.json3
         candidates = [
