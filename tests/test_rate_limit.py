@@ -32,12 +32,14 @@ def test_rate_limited_error_message_explains_what_to_do():
 
 def test_download_subtitles_does_not_retry_on_429():
     ydl = MagicMock()
-    ydl.download.side_effect = yt_dlp.utils.DownloadError(_429)
+    ydl.params = {}
+    ydl.extract_info.return_value = {"automatic_captions": {"en-orig": []}}
+    ydl.process_ie_result.side_effect = yt_dlp.utils.DownloadError(_429)
 
     with pytest.raises(RateLimitedError):
-        _download_subtitles(ydl, "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+        _download_subtitles(ydl, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "en")
 
-    assert ydl.download.call_count == 1
+    assert ydl.process_ie_result.call_count == 1
 
 
 def test_get_video_metadata_raises_rate_limited_on_429():

@@ -1,6 +1,7 @@
 """YouTube transcript domain.
 
-Uses yt-dlp to download subtitles to a temp directory, converts json3 format
+Uses yt-dlp to pick a non-translated caption track (see caption_track.py),
+download it to a temp directory, converts json3 format
 to plain text, then passes the full transcript through the dual-LLM sanitizer
 before returning it to the caller.
 """
@@ -10,6 +11,7 @@ import re
 import tempfile
 import yt_dlp
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from youtube_mcp.caption_track import choose_track
 from youtube_mcp.rate_limit import translate_rate_limit
 from youtube_mcp.sanitizer import sanitize
 
@@ -42,11 +44,17 @@ def _resolve_url(url_or_id: str) -> str:
     stop=stop_after_attempt(3),
     reraise=True,
 )
-def _download_subtitles(ydl: yt_dlp.YoutubeDL, url: str) -> None:
+def _download_subtitles(ydl: yt_dlp.YoutubeDL, url: str, language: str) -> None:
     # A 429 becomes RateLimitedError, which is not retried: hammering a
     # throttled endpoint only extends the throttle.
     with translate_rate_limit():
-        ydl.download([url])
+        info = ydl.extract_info(url, download=False, process=False)
+        track = choose_track(info, language)
+        if track is None:
+            raise ValueError(f"No untranslated transcript available for '{url}'.")
+        # Download only the chosen track; yt-dlp reads this at process time.
+        ydl.params["subtitleslangs"] = [track]
+        ydl.process_ie_result(info, download=True)
 
 
 def get_transcript(url_or_id: str, language: str = "en") -> str:
@@ -57,7 +65,6 @@ def get_transcript(url_or_id: str, language: str = "en") -> str:
             "writeautomaticsub": True,
             "writesubtitles": True,
             "skip_download": True,
-            "subtitleslangs": [language],
             "subtitlesformat": "json3",
             "outtmpl": os.path.join(tmpdir, "%(id)s"),
             "quiet": True,
@@ -65,9 +72,9 @@ def get_transcript(url_or_id: str, language: str = "en") -> str:
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            _download_subtitles(ydl, url)
+            _download_subtitles(ydl, url, language)
 
-        # yt-dlp names the file: <id>.<lang>.json3 or <id>.<lang>-auto.json3
+        # yt-dlp names the file <id>.<lang>.json3; only one track is downloaded.
         candidates = [
             f for f in os.listdir(tmpdir)
             if f.endswith(".json3")
