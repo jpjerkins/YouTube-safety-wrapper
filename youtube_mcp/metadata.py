@@ -5,6 +5,7 @@ field (highest injection risk) is passed through the dual-LLM sanitizer.
 """
 from typing import Any
 import yt_dlp
+from youtube_mcp.rate_limit import translate_rate_limit
 from youtube_mcp.sanitizer import sanitize
 
 _KEEP_FIELDS = (
@@ -30,7 +31,7 @@ def get_video_metadata(url_or_id: str) -> dict[str, Any]:
     }
 
     url = _resolve_url(url_or_id)
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl, translate_rate_limit():
         info = ydl.extract_info(url, download=False)
 
     metadata = {k: info.get(k) for k in _KEEP_FIELDS}

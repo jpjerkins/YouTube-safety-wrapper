@@ -15,6 +15,7 @@ from mcp.server.fastmcp import FastMCP
 from youtube_mcp.tools import register_tools
 from youtube_mcp.transcript import get_transcript
 from youtube_mcp.metadata import get_video_metadata
+from youtube_mcp.rate_limit import RateLimitedError
 
 logging.basicConfig(level=logging.INFO)
 _log = logging.getLogger(__name__)
@@ -35,6 +36,9 @@ def transcript(url: str, language: str = "en") -> str:
         return get_transcript(url, language)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except RateLimitedError as e:
+        _log.warning("Rate-limited by YouTube fetching transcript for %s", url)
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         _log.exception("Failed to fetch transcript for %s", url)
         raise HTTPException(status_code=500, detail="Failed to fetch transcript.")
@@ -47,6 +51,9 @@ def video_metadata(url: str) -> dict:
         return get_video_metadata(url)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except RateLimitedError as e:
+        _log.warning("Rate-limited by YouTube fetching video metadata for %s", url)
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception:
         _log.exception("Failed to fetch video metadata for %s", url)
         raise HTTPException(status_code=500, detail="Failed to fetch video metadata.")

@@ -10,6 +10,7 @@ import re
 import tempfile
 import yt_dlp
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from youtube_mcp.rate_limit import translate_rate_limit
 from youtube_mcp.sanitizer import sanitize
 
 
@@ -42,7 +43,10 @@ def _resolve_url(url_or_id: str) -> str:
     reraise=True,
 )
 def _download_subtitles(ydl: yt_dlp.YoutubeDL, url: str) -> None:
-    ydl.download([url])
+    # A 429 becomes RateLimitedError, which is not retried: hammering a
+    # throttled endpoint only extends the throttle.
+    with translate_rate_limit():
+        ydl.download([url])
 
 
 def get_transcript(url_or_id: str, language: str = "en") -> str:
