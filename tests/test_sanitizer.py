@@ -52,3 +52,12 @@ def test_sanitize_requests_larger_budget_for_longer_transcripts(monkeypatch):
 
     assert mock_create.call_args.kwargs["max_tokens"] == sanitizer._max_tokens_for(raw)
     assert mock_create.call_args.kwargs["max_tokens"] > sanitizer._MIN_MAX_TOKENS
+
+
+def test_client_bounds_total_wait_below_callers_timeout():
+    # A stalled OpenRouter provider must fail fast instead of hanging the
+    # request; shortcuts-api gives up after 300s, so stay well under that.
+    import sys
+    kwargs = sys.modules["openai"].OpenAI.call_args.kwargs
+    attempts = kwargs["max_retries"] + 1
+    assert kwargs["timeout"] * attempts < 300

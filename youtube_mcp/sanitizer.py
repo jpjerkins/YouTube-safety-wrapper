@@ -19,11 +19,15 @@ _KEY_FILE = os.getenv(
 )
 _api_key = open(_KEY_FILE).read().strip()
 
+# Without an explicit timeout a stalled provider hangs the request for good.
+# 2 attempts x 120s stays under shortcuts-api's 300s client timeout.
 _client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=_api_key,
+    timeout=120.0,
+    max_retries=1,
 )
-_MODEL = os.getenv("SANITIZER_MODEL", "mistralai/mistral-small-3.1-24b-instruct:free")
+_MODEL = os.getenv("SANITIZER_MODEL", "deepseek/deepseek-v4-flash")
 
 _SYSTEM = (
     "You extract and return factual content from text provided by the user. "
